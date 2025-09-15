@@ -10,6 +10,7 @@ import pickle
 import random
 import requests
 import functools
+from io import StringIO
 from pathlib import Path
 from typing import Iterable, Tuple, List
 
@@ -334,7 +335,7 @@ def get_us_stock_symbols(qlib_data_path: [str, Path] = None) -> list:
             raise ValueError("request error")
 
         try:
-            df = pd.read_csv(pd.compat.StringIO(resp.text), skiprows=9).dropna()
+            df = pd.read_csv(StringIO(resp.text), skiprows=9).dropna()
             df['Market Value']=df['Market Value'].replace({',': ''}, regex=True).astype(float)
             active_equity_df = df[(df["Asset Class"]=="Equity") & (df["Ticker"] != "-") & (~df["Exchange"].str.contains("UNLISTED")) & (df["Market Value"] > 10000)]
             _symbols = active_equity_df['Ticker'].unique().tolist()
@@ -386,7 +387,7 @@ def get_us_stock_symbols(qlib_data_path: [str, Path] = None) -> list:
             raise ValueError("request error")
 
         try:
-            df = pd.read_csv(pd.compat.StringIO(resp.text)).dropna()
+            df = pd.read_csv(StringIO(resp.text)).dropna()
             _symbols = df['Symbol'].unique().tolist()
         except Exception as e:
             logger.warning(f"request error: {e}")
