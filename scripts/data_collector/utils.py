@@ -290,6 +290,15 @@ def get_hs_stock_symbols() -> list:
     return _HS_SYMBOLS
 
 
+def get_us_common_etfs() -> list:
+    return [
+        "SPY",  # S&P 500 ETF
+        "QQQ",  # NASDAQ 100 ETF
+        "DIA",  # Dow Jones ETF
+        "IWM",  # Russell 2000 ETF
+        "VTI",  # Vanguard Total Stock Market ETF
+    ]
+
 def get_us_stock_symbols(qlib_data_path: [str, Path] = None) -> list:
     """get US stock symbols
 
@@ -315,6 +324,100 @@ def get_us_stock_symbols(qlib_data_path: [str, Path] = None) -> list:
         if len(_symbols) < 8000:
             raise ValueError("request error")
 
+        return _symbols
+    
+    @deco_retry
+    def _get_russel_2000():
+        url = "https://www.ishares.com/us/products/239710/ishares-russell-2000-etf/1467271812596.ajax?fileType=csv&fileName=IWM_holdings&dataType=fund"
+        resp = requests.get(url, timeout=None)
+        if resp.status_code != 200:
+            raise ValueError("request error")
+
+        try:
+            df = pd.read_csv(pd.compat.StringIO(resp.text), skiprows=9).dropna()
+            df['Market Value']=df['Market Value'].replace({',': ''}, regex=True).astype(float)
+            active_equity_df = df[(df["Asset Class"]=="Equity") & (df["Ticker"] != "-") & (~df["Exchange"].str.contains("UNLISTED")) & (df["Market Value"] > 10000)]
+            _symbols = active_equity_df['Ticker'].unique().tolist()
+        except Exception as e:
+            logger.warning(f"request error: {e}")
+            raise
+
+        if len(_symbols) < 1500:
+            raise ValueError("request error")
+
+        return _symbols
+    
+    @deco_retry
+    def _get_nasdaq_100():
+        url = "https://api.nasdaq.com/api/quote/list-type/nasdaq100"
+        resp = requests.get(url, headers={
+            "accept": "application/json, text/plain, */*",
+            "accept-language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7,ar;q=0.6",
+            "origin": "https://www.nasdaq.com",
+            "priority": "u=1, i",
+            "referer": "https://www.nasdaq.com/",
+            "sec-ch-ua": '"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"macOS"',
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-site",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+        }, timeout=None)
+        if resp.status_code != 200:
+            raise ValueError("request error")
+
+        try:
+            _symbols = [row["symbol"] for row in resp.json()["data"]["data"]["rows"]]
+        except Exception as e:
+            logger.warning(f"request error: {e}")
+            raise
+        
+        if len(_symbols) < 90:
+            raise ValueError("request error")
+        
+        return _symbols
+    
+    @deco_retry
+    def _get_sp500():
+        url = "https://datahub.io/core/s-and-p-500-companies/r/constituents.csv"
+        resp = requests.get(url, timeout=None)
+        if resp.status_code != 200:
+            raise ValueError("request error")
+
+        try:
+            df = pd.read_csv(pd.compat.StringIO(resp.text)).dropna()
+            _symbols = df['Symbol'].unique().tolist()
+        except Exception as e:
+            logger.warning(f"request error: {e}")
+            raise
+        
+        if len(_symbols) < 450:
+            raise ValueError("request error")
+        
+        return _symbols
+    
+    @deco_retry
+    def _get_dow30():
+        url = "https://www.slickcharts.com/dowjones"
+        resp = requests.get(url, headers={
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "accept-language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7,ar;q=0.6",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+        }, timeout=None)
+        if resp.status_code != 200:
+            raise ValueError("request error")
+          
+        try:
+            soup = BeautifulSoup(resp.content, "html.parser")
+            table = soup.find("table", {"class": "table table-hover table-borderless table-sm"})
+            _symbols = [row.find_all("td")[2].text.strip() for row in table.find("tbody").find_all("tr")]
+        except Exception as e:
+            logger.warning(f"request error: {e}")
+            raise
+        
+        if len(_symbols) != 30:
+            raise ValueError("request error")
         return _symbols
 
     @deco_retry
@@ -356,15 +459,16 @@ def get_us_stock_symbols(qlib_data_path: [str, Path] = None) -> list:
         return _symbols
 
     if _US_SYMBOLS is None:
-        _all_symbols = _get_eastmoney() + _get_nasdaq() + _get_nyse()
-        if qlib_data_path is not None:
-            for _index in ["nasdaq100", "sp500"]:
-                ins_df = pd.read_csv(
-                    Path(qlib_data_path).joinpath(f"instruments/{_index}.txt"),
-                    sep="\t",
-                    names=["symbol", "start_date", "end_date"],
-                )
-                _all_symbols += ins_df["symbol"].unique().tolist()
+        # _all_symbols = _get_eastmoney() + _get_nasdaq() + _get_nyse()
+        # if qlib_data_path is not None:
+        #     for _index in ["nasdaq100", "sp500"]:
+        #         ins_df = pd.read_csv(
+        #             Path(qlib_data_path).joinpath(f"instruments/{_index}.txt"),
+        #             sep="\t",
+        #             names=["symbol", "start_date", "end_date"],
+        #         )
+        #         _all_symbols += ins_df["symbol"].unique().tolist()
+        _all_symbols = _get_russel_2000() + _get_nasdaq_100() + _get_sp500() + _get_dow30()
 
         def _format(s_):
             s_ = s_.replace(".", "-")

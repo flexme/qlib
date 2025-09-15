@@ -35,6 +35,7 @@ from data_collector.utils import (
     deco_retry,
     get_calendar_list,
     get_hs_stock_symbols,
+    get_us_common_etfs,
     get_us_stock_symbols,
     get_in_stock_symbols,
     get_br_stock_symbols,
@@ -264,11 +265,13 @@ class YahooCollectorCN1min(YahooCollectorCN):
 class YahooCollectorUS(YahooCollector, ABC):
     def get_instrument_list(self):
         logger.info("get US stock symbols......")
-        symbols = get_us_stock_symbols() + [
-            "^GSPC",
-            "^NDX",
-            "^DJI",
+        symbols = get_us_stock_symbols() + get_us_common_etfs() + [
+            "^GSPC",  # S&P 500
+            "^NDX",  # NASDAQ 100
+            "^DJI",  # Dow Jones Industrial Average
+            "^RUT",  # Russell 2000
         ]
+        symbols = list(set(symbols))
         logger.info(f"get {len(symbols)} symbols.")
         return symbols
 
