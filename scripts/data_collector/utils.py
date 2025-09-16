@@ -339,6 +339,12 @@ def get_us_stock_symbols(qlib_data_path: [str, Path] = None) -> list:
             df['Market Value']=df['Market Value'].replace({',': ''}, regex=True).astype(float)
             active_equity_df = df[(df["Asset Class"]=="Equity") & (df["Ticker"] != "-") & (~df["Exchange"].str.contains("UNLISTED")) & (df["Market Value"] > 10000)]
             _symbols = active_equity_df['Ticker'].unique().tolist()
+            fix_symbols = {
+              "CRDA": "CRD.A",
+              "GEFB": "GEF.B",
+              "MOGA": "MOG.A",
+            }
+            _symbols = [fix_symbols.get(s, s) for s in _symbols]
         except Exception as e:
             logger.warning(f"request error: {e}")
             raise

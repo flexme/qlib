@@ -40,6 +40,7 @@ class BaseCollector(abc.ABC):
         delay=0,
         check_data_length: int = None,
         limit_nums: int = None,
+        only_download_not_exists: bool = True,
     ):
         """
 
@@ -78,6 +79,11 @@ class BaseCollector(abc.ABC):
         self.end_datetime = self.normalize_end_datetime(end)
 
         self.instrument_list = sorted(set(self.get_instrument_list()))
+        
+        if only_download_not_exists:
+            exists_instruments = {f.stem for f in self.save_dir.glob("*.csv")}
+            self.instrument_list = [inst for inst in self.instrument_list if code_to_fname(inst) not in exists_instruments]
+            logger.info(f"{len(exists_instruments)} instruments already exist, {len(self.instrument_list)} to download.")
 
         if limit_nums is not None:
             try:
@@ -371,6 +377,7 @@ class BaseRun(abc.ABC):
         end=None,
         check_data_length: int = None,
         limit_nums=None,
+        only_download_not_exists: bool = True,
         **kwargs,
     ):
         """download data from Internet
@@ -409,6 +416,7 @@ class BaseRun(abc.ABC):
             interval=self.interval,
             check_data_length=check_data_length,
             limit_nums=limit_nums,
+            only_download_not_exists=only_download_not_exists,
             **kwargs,
         ).collector_data()
 
