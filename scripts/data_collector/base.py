@@ -14,7 +14,6 @@ import pandas as pd
 from tqdm import tqdm
 from loguru import logger
 from joblib import Parallel, delayed
-from qlib.utils import code_to_fname
 
 
 class BaseCollector(abc.ABC):
@@ -82,7 +81,7 @@ class BaseCollector(abc.ABC):
         
         if only_download_not_exists:
             exists_instruments = {f.stem for f in self.save_dir.glob("*.csv")}
-            self.instrument_list = [inst for inst in self.instrument_list if code_to_fname(inst) not in exists_instruments]
+            self.instrument_list = [inst for inst in self.instrument_list if self.normalize_symbol(inst) not in exists_instruments]
             logger.info(f"{len(exists_instruments)} instruments already exist, {len(self.instrument_list)} to download.")
 
         if limit_nums is not None:
@@ -170,7 +169,6 @@ class BaseCollector(abc.ABC):
             return
 
         symbol = self.normalize_symbol(symbol)
-        symbol = code_to_fname(symbol)
         instrument_path = self.save_dir.joinpath(f"{symbol}.csv")
         df["symbol"] = symbol
         if instrument_path.exists():
