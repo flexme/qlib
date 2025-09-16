@@ -60,6 +60,7 @@ class YahooCollector(BaseCollector):
         delay=0,
         check_data_length: int = None,
         limit_nums: int = None,
+        only_download_not_exists: bool = True,
     ):
         """
 
@@ -94,6 +95,7 @@ class YahooCollector(BaseCollector):
             delay=delay,
             check_data_length=check_data_length,
             limit_nums=limit_nums,
+            only_download_not_exists=only_download_not_exists,
         )
 
         self.init_datetime()
